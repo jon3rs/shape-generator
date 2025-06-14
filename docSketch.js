@@ -298,7 +298,6 @@ var docSketch = function (d) {
     //d.shininess(100);
 
     if (drawSkin) {
-      console.log("stars legnth: ", stars.length);
       stars.forEach((star, index) => {
         d.model(starShapes[index]);
       });
@@ -342,6 +341,7 @@ var docSketch = function (d) {
 
   function generateConnectors() {
     connectors = [];
+    splines = [];
     let innerStarVertices = stars[0].getAnglePoints();
     let outerStarVertices = stars[stars.length - 1].getAnglePoints();
     for (let c = 0; c < innerStarVertices.length / 2; c++) {
@@ -362,6 +362,7 @@ var docSketch = function (d) {
     stars = [];
     connectors = [];
     starShapes = [];
+    splines = [];
     //innerRadius = initialInnerRadius;
     offset = initialOffset;
     if (iterations == 1) {
@@ -376,7 +377,6 @@ var docSketch = function (d) {
       star.init();
       starShapes[0] = star.geometryObject;
     } else {
-      console.log("generating ", iterations, " stars");
       for (let i = 0; i < iterations; i++) {
         let iR = d.map(i, 0, iterations - 1, innerRadius, innerRadius2);
         let oR = d.map(i, 0, iterations - 1, outerRadius, outerRadius2);
