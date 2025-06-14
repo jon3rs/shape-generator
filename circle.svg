@@ -1,0 +1,6 @@
+<svg version="1.1" width="4" height="4"
+     xmlns="http://www.w3.org/2000/svg">
+    <circle r="1" cx="1" cy="1" fill="yellow" />
+    <circle r="1" cx="3" cy="3" fill="yellow" />
+
+</svg>

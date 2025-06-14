@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Sketch</title>
+
+  <link rel="stylesheet" type="text/css" href="style.css">
+
+  <script src="libraries/p5.min.js"></script>
+  <!--   <script src="libraries/p5.sound.min.js"></script>
+ -->
+  <!--   <script src="soapDish.js"></script>
+ -->
+  <script src="docSketch.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="test">
+      <div id="rect1"></div>
+      <div id="rect2"></div>
+      <div id="rect3"></div>
+    </div>
+    <div id="soap-dish-container" class="sketch-container border">
+      <div id="docSketch"></div>
+      <div class="toggle-controls ">
+        <button type="button" id="toggle-controls">
+          <span class="sr-only">Show Controls</span>
+          <span class="toggle-icon">
+            <span class="angle1"></span>
+            <span class="angle2"></span>
+          </span>
+        </button>
+      </div>
+      <div class="controls hidden">
+
+        <div class="content">
+          <div class="column">
+            <div class="column-head">
+              <h3>Inner Star</h3>
+            </div>
+            <div class="control-item">
+              <label for="inner-radius">inner radius:</label>
+              <input type="range" name="" id="inner-radius" min="10" step="1" max="200">
+            </div>
+            <div class="control-item">
+              <label for="outer-radius"> outer radius:</label>
+              <input type="range" name="outer-radius" id="outer-radius" min="10" step="1" max="200">
+            </div>
+            <div class="control-item">
+              <label for="spikes">spikes:</label>
+              <input type="range" name="" id="spikes" min="3" step="1" max="12">
+            </div>
+            <div class="control-item">
+              <label for="star-thickness">thickness:</label>
+              <input type="range" name="" id="star-thickness" min="1" step="0.1" max="40">
+            </div>
+            <div class="control-item">
+              <label for="stretchX">stretchX:</label>
+              <input type="range" name="" id="stretchX" min="0.5" step="0.01" max="3">
+            </div>
+            <div class="control-item">
+              <input type="checkbox" name="drawSkin" id="drawSkin" checked>
+              <label for="drawSkin">Draw Skin</label>
+            </div>
+            <div class="control-item">
+              <button type="button" id="randomize">Randomize</button>
+            </div>
+
+          </div>
+          <div class="column">
+            <div class="column-head">
+              <input type="checkbox" name="outer-star" id="outer-star">
+              <label class="column-head" for="outer-star">Outer Star</label>
+            </div>
+            <div class="control-item">
+              <label for="inner-radius2">inner radius:</label>
+              <input type="range" name="" id="inner-radius2" min="10" step="1" max="400">
+            </div>
+            <div class="control-item">
+              <label for="outer-radius2"> outer radius:</label>
+              <input type="range" name="outer-radius2" id="outer-radius2" min="10" step="1" max="400">
+            </div>
+            <div class="control-item">
+              <label for="iterations">iterations:</label>
+              <input type="range" name="" id="iterations" min="1" step="1" max="10">
+            </div>
+
+          </div>
+          <div class="column">
+            <div class="column-head">
+              <input type="checkbox" name="connections" id="connections" checked>
+              <label class="column-head" for="connections">Connections</label>
+            </div>
+            <div class="control-item">
+              <label for="connections-thickness">thickness: </label>
+              <input type="range" name="connections-thickness" id="connections-thickness" min="1" step="0.1" max="10">
+            </div>
+
+          </div>
+          <div class="column">
+
+            <div class="control-item">
+              <button type="button" id="save-stl">Download as .stl 📥</button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+
+</html>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    let controls = document.getElementsByClassName('.controls');
+    controls.forEach(control => {
+      control.addEventListener('mousedown', function (event) {
+        event.stopPropagation();
+      });
+
+      control.addEventListener('mousemove', function (event) {
+        event.stopPropagation();
+      });
+
+      control.addEventListener('mouseup', function (event) {
+        event.stopPropagation();
+      });
+
+      control.addEventListener('wheel', function (event) {
+        event.stopPropagation();
+      });
+    });
+
+    let toggleButton = document.getElementById('toggle-controls');
+    toggleButton.addEventListener('click', function () {
+      let controls = document.querySelector('.controls');
+      controls.classList.toggle('hidden');
+      toggleButton.classList.toggle('active');
+      if (controls.classList.contains('hidden')) {
+        toggleButton.querySelector('.sr-only').textContent = 'Show Controls';
+      } else {
+        toggleButton.querySelector('.sr-only').textContent = 'Hide Controls';
+      }
+    });
+  });
+</script>
