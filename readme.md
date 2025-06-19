@@ -11,7 +11,7 @@ Besides the wish for a procrastination project and maybe a printable soap dish o
 - how to calculate the normal vector of each shape?
 - how to calculate the circles' stretch factors at the intersection points of two vectors, so that the individual cylinders' thickness remains the same?
 
----
+ <img alt="UI of the shape generator" src="./example-shape.png">
 
 ### to dos
 
