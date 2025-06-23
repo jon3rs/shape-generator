@@ -1,35 +1,17 @@
+import { CONFIG } from "./config.js";
+import { UIController } from "./classes/UIController.js";
+
 var docSketch = function (d) {
-  let toggleControls;
-
-  let sliderInnerRadius;
-  let sliderOuterRadius;
-  let sliderThicknessStar;
-  let sliderStretchX;
-  let sliderSpikes;
-
-  let buttonRandomize;
   let buttonDownload;
-  let checkboxDrawSkin;
 
-  let sliderInnerRadius2;
-  let sliderOuterRadius2;
-  let sliderIterations;
-  let outerStarControls = [];
-
-  let drawSkin = true;
   let orbitControl = true;
   let starShapes = [];
   let connectors = [];
-  let form;
 
   let width, height;
   let angle;
   let segments = 20;
 
-  let toggleOuterStar;
-  let toggleConnectors;
-  let sliderConnectorsThickness;
-  let connectorThickness = 3;
   let splines = [];
 
   let initialInnerRadius = 40;
@@ -40,11 +22,7 @@ var docSketch = function (d) {
   let innerRadius2 = initialInnerRadius2;
   let initialOuterRadius2 = 200;
   let outerRadius2 = initialOuterRadius2;
-  let scaleOffset = 0.9;
 
-  let offset,
-    initialOffset = 13;
-  let distance = 25;
   let spikes = 7;
   let starPoints = spikes * 2;
   let randomX = 0.2;
@@ -55,114 +33,36 @@ var docSketch = function (d) {
   let stars = [];
   let randomness = [];
   let sketchContainer;
+  let starAngle;
+  let initialConfig;
 
   let wholeModel;
+
+  let uiController;
 
   d.setup = function () {
     sketchContainer = document
       .getElementById("soap-dish-container")
       .getBoundingClientRect();
+
+    initialConfig = structuredClone
+      ? structuredClone(CONFIG)
+      : JSON.parse(JSON.stringify(CONFIG));
+
+    uiController = new UIController(initialConfig, (newConfig) => {
+      updateStars(newConfig);
+    });
+    uiController.init();
+    console.log("config: ", initialConfig);
     width = sketchContainer.width;
     height = sketchContainer.height;
     angle = d.TWO_PI / segments;
     starAngle = d.TWO_PI / starPoints;
-
+    d.randomSeed(99);
     d.createCanvas(width, height, d.WEBGL);
 
-    sliderInnerRadius = document.getElementById("inner-radius");
-    sliderInnerRadius.value = innerRadius;
-    sliderInnerRadius.addEventListener("input", (event) => {
-      innerRadius = parseFloat(sliderInnerRadius.value);
-      updateStars();
-    });
-
-    sliderOuterRadius = document.getElementById("outer-radius");
-    sliderOuterRadius.value = outerRadius;
-    sliderOuterRadius.addEventListener("input", (event) => {
-      outerRadius = parseFloat(sliderOuterRadius.value);
-      updateStars();
-    });
-
-    sliderInnerRadius2 = document.getElementById("inner-radius2");
-    sliderInnerRadius2.value = innerRadius2;
-    sliderInnerRadius2.addEventListener("input", (event) => {
-      innerRadius2 = parseFloat(sliderInnerRadius2.value);
-      updateStars();
-    });
-
-    sliderOuterRadius2 = document.getElementById("outer-radius2");
-    sliderOuterRadius2.value = outerRadius2;
-    sliderOuterRadius2.addEventListener("input", (event) => {
-      outerRadius2 = parseFloat(sliderOuterRadius2.value);
-      updateStars();
-    });
-
-    sliderThicknessStar = document.getElementById("star-thickness");
-    sliderThicknessStar.value = starThickness;
-    sliderThicknessStar.addEventListener("input", (event) => {
-      starThickness = parseFloat(sliderThicknessStar.value);
-      updateStars();
-    });
-
-    toggleOuterStar = document.getElementById("outer-star");
-    toggleOuterStar.checked = iterations > 1;
-    toggleOuterStar.addEventListener("change", (event) => {
-      console.log("sliderIterations.value: ", sliderIterations.value);
-      if (toggleOuterStar.checked) {
-        iterations = sliderIterations.value;
-        console.log("iterations: ", iterations);
-        outerStarControls.forEach((control) => {
-          control.disabled = false;
-        });
-      } else {
-        iterations = 1;
-        toggleConnectors.checked = false;
-        toggleConnectors.dispatchEvent(new Event("change"));
-
-        outerStarControls.forEach((control) => {
-          control.disabled = true;
-        });
-      }
-      updateStars();
-    });
-
-    toggleConnectors = document.getElementById("connections");
-    sliderConnectorsThickness = document.getElementById(
-      "connections-thickness"
-    );
-    toggleConnectors.checked = true;
-    toggleConnectors.addEventListener("change", (event) => {
-      console.log("toggleConnectors.checked: ", toggleConnectors.checked);
-      if (toggleConnectors.checked) {
-        sliderConnectorsThickness.disabled = false;
-        connectorThickness = sliderConnectorsThickness.value;
-        generateConnectors();
-      } else {
-        sliderConnectorsThickness.disabled = true;
-        connectors = [];
-        splines = [];
-      }
-    });
-
-    sliderConnectorsThickness.value = connectorThickness;
-    sliderConnectorsThickness.addEventListener("input", (event) => {
-      connectorThickness = parseFloat(sliderConnectorsThickness.value);
-      generateConnectors();
-    });
-
-    sliderStretchX = document.getElementById("stretchX");
-    buttonRandomize = document.getElementById("randomize");
     buttonDownload = document.getElementById("save-stl");
-    sliderIterations = document.getElementById("iterations");
-    checkboxDrawSkin = document.getElementById("drawSkin");
-    checkboxDrawSkin.checked = drawSkin;
-    sliderSpikes = document.getElementById("spikes");
-    sliderSpikes.value = spikes;
-    sliderSpikes.addEventListener("input", (event) => {
-      spikes = parseInt(sliderSpikes.value);
-      generateRandomnessPerVertex();
-      updateStars();
-    });
+
     let controlsDiv = document.getElementsByClassName("controls");
     console.log("controlsDiv: ", controlsDiv);
     controlsDiv.forEach((div) => {
@@ -185,85 +85,18 @@ var docSketch = function (d) {
         orbitControl = true;
       });
     });
-    checkboxDrawSkin.addEventListener("change", (event) => {
-      if (checkboxDrawSkin.checked) {
-        drawSkin = true;
-      } else {
-        drawSkin = false;
-      }
-    });
-
-    sliderStretchX.value = iterations;
-    sliderIterations.addEventListener("input", (event) => {
-      console.log("sliderIterations.value: ", sliderIterations.value);
-      iterations = parseInt(sliderIterations.value);
-      if (iterations == 1) {
-        toggleOuterStar.checked = false;
-      } else {
-        toggleOuterStar.checked = true;
-      }
-      updateStars();
-    });
-
-    outerStarControls.push(sliderInnerRadius2);
-    outerStarControls.push(sliderOuterRadius2);
-    outerStarControls.push(sliderIterations);
-
-    buttonRandomize.addEventListener("click", (event) => {
-      event.stopPropagation();
-      randomness = [];
-      for (let a = 0; a < spikes * 2; a++) {
-        let random = d.createVector(
-          1 + d.random(-randomX, randomX),
-          1 + d.random(-randomY, randomY)
-        );
-        randomness.push(random);
-      }
-      updateStars();
-    });
 
     buttonDownload.addEventListener("click", (event) => {
       let stl = getWholeModel();
       stl.saveStl("soap-dish.stl", { binary: true });
     });
 
-    sliderStretchX.value = stretchX;
-    sliderStretchX.addEventListener("input", (event) => {
-      event.stopPropagation();
-      stretchX = parseFloat(sliderStretchX.value);
-      updateStars();
-    });
-
     innerRadius = initialInnerRadius;
     generateRandomnessPerVertex();
-    /* for (let a = 0; a < spikes * 2; a++) {
-      let random = d.createVector(
-        1 + d.random(-randomX, randomX),
-        1 + d.random(-randomY, randomY)
-      );
-      randomness.push(random);
-    } */
-    offset = initialOffset;
 
-    /* for (let i = 0; i < iterations; i++) {
-      let star = new Star(innerRadius, offset, spikes, segments);
-      console.log("star:", star);
-      star.init();
-      stars.push(star);
-      starShapes[i] = star.geometryObject;
-      //offset += 30;
-      offset *= scaleOffset;
+    updateStars(initialConfig);
 
-      innerRadius += distance;
-    }
- */
-
-    /* stars.forEach((star, index) => {
-  starShapes[index] = star.geometryObject;
-  }); */
-    updateStars();
-
-    generateConnectors();
+    generateConnectors(initialConfig);
     d.background(0);
   };
 
@@ -297,7 +130,7 @@ var docSketch = function (d) {
     //d.emissiveMaterial(200);
     //d.shininess(100);
 
-    if (drawSkin) {
+    if (initialConfig?.drawSkin) {
       stars.forEach((star, index) => {
         d.model(starShapes[index]);
       });
@@ -339,39 +172,62 @@ var docSketch = function (d) {
     return wholeModel;
   }
 
-  function generateConnectors() {
+  function generateConnectors(config = initialConfig) {
     connectors = [];
     splines = [];
     let innerStarVertices = stars[0].getAnglePoints();
     let outerStarVertices = stars[stars.length - 1].getAnglePoints();
     for (let c = 0; c < innerStarVertices.length / 2; c++) {
-      let spline = new Spline([
-        innerStarVertices[c * 2],
-        outerStarVertices[c * 2],
-      ]);
+      let spline = new Spline(
+        [innerStarVertices[c * 2], outerStarVertices[c * 2]],
+        config?.connectors?.thickness ? config.connectors.thickness : 3
+      );
       spline.init();
       splines[c] = spline;
       connectors[c] = spline.geometryObject;
     }
   }
 
-  function updateStars() {
+  function updateStars(config = null) {
+    console.log("updateStars called with config: ", config, initialConfig);
+
+    segments = config?.stars?.segments ? config.stars.segments : segments;
     angle = d.TWO_PI / segments;
+    spikes = config?.stars?.spikes ? config.stars.spikes : spikes;
+    iterations = config?.stars?.iterations
+      ? config.stars.iterations
+      : iterations;
+    starThickness = config?.stars?.thickness
+      ? config.stars.thickness
+      : starThickness;
+    innerRadius = config?.stars?.innerStar?.innerRadius
+      ? config.stars.innerStar.innerRadius
+      : innerRadius;
+    outerRadius = config?.stars?.innerStar?.outerRadius
+      ? config.stars.innerStar.outerRadius
+      : outerRadius;
+    innerRadius2 = config?.stars?.outerStar?.innerRadius
+      ? config.stars.outerStar.innerRadius
+      : innerRadius2;
+    outerRadius2 = config?.stars?.outerStar?.outerRadius
+      ? config.stars.outerStar.outerRadius
+      : outerRadius2;
+
+    stretchX = config?.stars?.stretchX ? config.stars.stretchX : stretchX;
     starAngle = d.TWO_PI / (spikes * 2);
+    generateRandomnessPerVertex(config?.randomSeed);
 
     stars = [];
     connectors = [];
     starShapes = [];
     splines = [];
-    //innerRadius = initialInnerRadius;
-    offset = initialOffset;
-    if (iterations == 1) {
+    if (config?.stars?.outerStar?.enabled === false) {
       let star = new Star(
-        innerRadius,
-        outerRadius,
-        spikes,
+        config.stars.innerStar.innerRadius,
+        config.stars.innerStar.outerRadius,
+        config.stars.spikes,
         segments,
-        starThickness
+        config.stars.thickness
       );
       stars.push(star);
       star.init();
@@ -386,16 +242,19 @@ var docSketch = function (d) {
         star.init();
         starShapes[i] = star.geometryObject;
         d.redraw();
-        //innerRadius += distance;
-        //offset *= scaleOffset;
       }
-      if (toggleConnectors.checked) {
-        generateConnectors();
+      if (config?.connectors?.enabled) {
+        console.log(
+          "Generating connectors with config: ",
+          config.connectors.enabled
+        );
+        generateConnectors(config);
       }
     }
   }
 
-  function generateRandomnessPerVertex() {
+  function generateRandomnessPerVertex(randomSeed = 0) {
+    d.randomSeed(randomSeed);
     randomness = [];
     for (let a = 0; a < spikes * 2; a++) {
       let random = d.createVector(
@@ -407,15 +266,16 @@ var docSketch = function (d) {
   }
 
   class Spline {
-    constructor(points) {
+    constructor(points, thickness = 3) {
       this.points = points;
       this.geometryObject;
       this.segments = 8;
       this.angle = d.TWO_PI / this.segments;
-      this.thickness = connectorThickness;
+      this.thickness = thickness;
       this.splineSkinVertices = [];
     }
     init() {
+      console.log("Spline init with thickness: ", this.thickness);
       this.generateSplineSkinVertices();
       this.geometryObject = this.getGeometry();
     }
@@ -496,10 +356,10 @@ var docSketch = function (d) {
   }
 
   class Star {
-    constructor(innerRadius, offset, spikes, segments, thickness = 5) {
+    constructor(innerRadius, outerRadius, spikes, segments, thickness = 5) {
       this.innerRadius = innerRadius;
       this.spikes = spikes;
-      this.offset = offset;
+      this.outerRadius = outerRadius;
       this.segments = segments;
       this.thickness = thickness;
       this.starSkinVertices = [];
@@ -511,6 +371,17 @@ var docSketch = function (d) {
     }
 
     init() {
+      console.log(
+        "initializing star with innerRadius: ",
+        this.innerRadius,
+        this.outerRadius,
+        "spikes: ",
+        this.spikes,
+        "segments: ",
+        this.segments,
+        "thickness: ",
+        this.thickness
+      );
       this.generatePoints();
       this.generateBones();
       this.generateSkinVertices();
@@ -528,7 +399,7 @@ var docSketch = function (d) {
         if (i % 2 === 0) {
           r = this.innerRadius;
         } else {
-          r = this.offset;
+          r = this.outerRadius;
         }
 
         this.anglePoints.push(
