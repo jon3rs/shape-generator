@@ -15,6 +15,7 @@ export class UIController {
   init() {
     this.setupSliders();
     this.setupToggles();
+    this.setupRadioButtons();
     this.setupButtons();
     // Add any additional UI setup here
     console.log("UIController initialized with config:", this.config);
@@ -47,6 +48,37 @@ export class UIController {
         if (this.callback) {
           this.callback(this.config);
         }
+      });
+    });
+  }
+
+  setupRadioButtons() {
+    UI_CONFIG.radioButtons.forEach(({ name, options, path }) => {
+      console.log("Setting up radio buttons for:", name, options, path);
+      options.forEach(({ id, value }) => {
+        const radio = document.getElementById(id);
+        if (!radio) {
+          console.warn(`Radio button with id ${id} not found`);
+          return;
+        }
+        radio.checked = getObjValueByPath(this.config, path) === value;
+        console.log("set up radio button:", id, "with value:", radio.checked);
+        radio.addEventListener("change", (e) => {
+          if (e.target.checked) {
+            console.log(
+              `Radio button ${id} changed:`,
+              e.target.value,
+              this.config,
+              path,
+              value
+            );
+            setObjValueByPath(this.config, path, value);
+            this.controls.set(path, value);
+            if (this.callback) {
+              this.callback(this.config);
+            }
+          }
+        });
       });
     });
   }

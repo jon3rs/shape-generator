@@ -9,6 +9,10 @@ export const CONFIG = {
       innerRadius: 100,
       outerRadius: 120,
     },
+    curveType: "LINEAR",
+    offsetInnerHandle: 30,
+    offsetOuterHandle: 30,
+    intermediatePoints: 5,
     spikes: 7,
     iterations: 5,
     stretchX: 1.5,
@@ -44,6 +48,18 @@ export const UI_CONFIG = {
       id: "connections",
       path: "connectors.enabled",
       toggles: ["connections-thickness"],
+    },
+  ],
+  radioButtons: [
+    {
+      name: "curve_type",
+      options: [
+        { id: "linear", value: "LINEAR" },
+        { id: "quadratic-bezier-inner", value: "QUADRATIC_BEZIER_INNER" },
+        { id: "quadratic-bezier-outer", value: "QUADRATIC_BEZIER_OUTER" },
+        { id: "cubic-bezier", value: "CUBIC_BEZIER" },
+      ],
+      path: "stars.curveType",
     },
   ],
   buttons: [
@@ -132,6 +148,23 @@ export const UI_CONFIG = {
       min: 0,
       max: 10,
       step: 0.1,
+    },
+    {
+      id: "offset-handle",
+      label: "offset Handle",
+      path: "stars.offsetHandle",
+      min: -300,
+      max: 300,
+      step: 0.1,
+    },
+
+    {
+      id: "intermediate-points",
+      label: "Intermediate Points",
+      path: "stars.intermediatePoints",
+      min: 1,
+      max: 30,
+      step: 1,
     },
   ],
 };

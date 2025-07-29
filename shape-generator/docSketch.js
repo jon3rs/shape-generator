@@ -58,7 +58,7 @@ var docSketch = function (d) {
     height = sketchContainer.height;
     angle = d.TWO_PI / segments;
     starAngle = d.TWO_PI / starPoints;
-    d.randomSeed(99);
+    d.randomSeed(2);
     d.createCanvas(width, height, d.WEBGL);
 
     buttonDownload = document.getElementById("save-stl");
@@ -190,44 +190,41 @@ var docSketch = function (d) {
 
   function updateStars(config = null) {
     console.log("updateStars called with config: ", config, initialConfig);
-
-    segments = config?.stars?.segments ? config.stars.segments : segments;
+    if (!config) {
+      console.error("No config provided to updateStars");
+      return;
+    }
+    segments = config.stars.segments;
     angle = d.TWO_PI / segments;
-    spikes = config?.stars?.spikes ? config.stars.spikes : spikes;
-    iterations = config?.stars?.iterations
-      ? config.stars.iterations
-      : iterations;
-    starThickness = config?.stars?.thickness
-      ? config.stars.thickness
-      : starThickness;
-    innerRadius = config?.stars?.innerStar?.innerRadius
-      ? config.stars.innerStar.innerRadius
-      : innerRadius;
-    outerRadius = config?.stars?.innerStar?.outerRadius
-      ? config.stars.innerStar.outerRadius
-      : outerRadius;
-    innerRadius2 = config?.stars?.outerStar?.innerRadius
-      ? config.stars.outerStar.innerRadius
-      : innerRadius2;
-    outerRadius2 = config?.stars?.outerStar?.outerRadius
-      ? config.stars.outerStar.outerRadius
-      : outerRadius2;
+    spikes = config.stars.spikes;
+    iterations = config.stars.iterations;
+    starThickness = config.stars.thickness;
+    innerRadius = config.stars.innerStar.innerRadius;
+    outerRadius = config.stars.innerStar.outerRadius;
+    innerRadius2 = config.stars.outerStar.innerRadius;
+    outerRadius2 = config.stars.outerStar.outerRadius;
+    let curveType = config.stars.curveType;
+    let offsetHandle = config.stars.offsetHandle;
+    let intermediatePoints = config.stars.intermediatePoints;
 
-    stretchX = config?.stars?.stretchX ? config.stars.stretchX : stretchX;
+    stretchX = config.stars.stretchX;
     starAngle = d.TWO_PI / (spikes * 2);
-    generateRandomnessPerVertex(config?.randomSeed);
+    generateRandomnessPerVertex(config.randomSeed);
 
     stars = [];
     connectors = [];
     starShapes = [];
     splines = [];
-    if (config?.stars?.outerStar?.enabled === false) {
+    if (config.stars.outerStar.enabled === false) {
       let star = new Star(
         config.stars.innerStar.innerRadius,
         config.stars.innerStar.outerRadius,
         config.stars.spikes,
         segments,
-        config.stars.thickness
+        config.stars.thickness,
+        curveType,
+        offsetHandle,
+        intermediatePoints
       );
       stars.push(star);
       star.init();
@@ -237,7 +234,16 @@ var docSketch = function (d) {
         let iR = d.map(i, 0, iterations - 1, innerRadius, innerRadius2);
         let oR = d.map(i, 0, iterations - 1, outerRadius, outerRadius2);
 
-        let star = new Star(iR, oR, spikes, segments, starThickness);
+        let star = new Star(
+          iR,
+          oR,
+          spikes,
+          segments,
+          starThickness,
+          curveType,
+          offsetHandle,
+          intermediatePoints
+        );
         stars.push(star);
         star.init();
         starShapes[i] = star.geometryObject;
@@ -356,7 +362,16 @@ var docSketch = function (d) {
   }
 
   class Star {
-    constructor(innerRadius, outerRadius, spikes, segments, thickness = 5) {
+    constructor(
+      innerRadius,
+      outerRadius,
+      spikes,
+      segments,
+      thickness = 5,
+      curveType = "LINEAR",
+      offsetHandle,
+      intermediatePoints
+    ) {
       this.innerRadius = innerRadius;
       this.spikes = spikes;
       this.outerRadius = outerRadius;
@@ -364,10 +379,15 @@ var docSketch = function (d) {
       this.thickness = thickness;
       this.starSkinVertices = [];
       this.anglePoints = [];
+      this.allPoints = [];
+      this.handlePoints = [];
       this.bisectorVectors = [];
       this.crossVectors = [];
       this.boneVectors = [];
       this.geometryObject;
+      this.curveType = curveType;
+      this.offsetHandle = offsetHandle;
+      this.intermediatePoints = intermediatePoints;
     }
 
     init() {
@@ -384,6 +404,11 @@ var docSketch = function (d) {
       );
       this.generatePoints();
       this.generateBones();
+      console.log("curvetype: ", this.curveType);
+      if (this.curveType !== "LINEAR") {
+        this.generateIntermediatePoints();
+      }
+      console.log("all Points: ", this.allPoints);
       this.generateSkinVertices();
       this.geometryObject = this.getGeometry();
     }
@@ -392,14 +417,18 @@ var docSketch = function (d) {
       return this.anglePoints;
     }
 
+    getHandlePoints() {
+      return this.handlePoints;
+    }
+
     generatePoints() {
       this.anglePoints = [];
       for (let i = 0; i < this.spikes * 2; i++) {
         let r;
         if (i % 2 === 0) {
-          r = this.innerRadius;
-        } else {
           r = this.outerRadius;
+        } else {
+          r = this.innerRadius;
         }
 
         this.anglePoints.push(
@@ -409,23 +438,231 @@ var docSketch = function (d) {
             0
           )
         );
-        this.starSkinVertices[i] = [];
-        for (let s = 0; s < this.segments; s++) {
-          let initialVector = d.createVector(0, 0, 0);
-          this.starSkinVertices[i][s] = initialVector;
-        }
+        this.allPoints = this.anglePoints;
       }
+    }
+    createQuadrBezierPoint(p1, p2, p3, t = 0.5) {
+      console.log("t= ", t);
+      let x1 = p1.x + (p2.x - p1.x) * t;
+      let y1 = p1.y + (p2.y - p1.y) * t;
+      let x2 = p2.x + (p3.x - p2.x) * t;
+      let y2 = p2.y + (p3.y - p2.y) * t;
+      let newX = x1 + (x2 - x1) * t;
+      let newY = y1 + (y2 - y1) * t;
+      let newV = d.createVector(newX, newY, 0);
+      return newV;
+    }
+
+    getHandlePoints(anglePointIndex) {
+      console.log("boneVectors: ", anglePointIndex, this.boneVectors);
+      let prevIndex =
+        (anglePointIndex - 1 + this.boneVectors.length) %
+        this.boneVectors.length;
+      console.log("prevIndex: ", prevIndex);
+
+      let nextIndex = (anglePointIndex + 1) % this.boneVectors.length;
+      //this.allPoints.push(this.anglePoints[prevIndex]);
+      let prevUV = this.boneVectors[prevIndex].copy().normalize();
+      let nextUV = this.boneVectors[anglePointIndex].copy().normalize();
+      let bisector = d
+        .createVector(
+          prevUV.x - nextUV.x,
+          prevUV.y - nextUV.y,
+          prevUV.z - nextUV.z
+        )
+        .normalize();
+
+      // ✅ Get perpendicular vector in XY plane
+      let perpendicularInPlane = d
+        .createVector(0, 0, 1)
+        .cross(bisector)
+        .normalize();
+
+      // If bisector is parallel to Z-axis, use different approach
+      if (perpendicularInPlane.mag() < 0.001) {
+        perpendicularInPlane = d.createVector(1, 0, 0); // Fallback
+      }
+
+      let angleBetweenVectors = p5.Vector.angleBetween(
+        this.boneVectors[prevIndex],
+        this.boneVectors[anglePointIndex]
+      );
+      console.log("angleBetweenVectors: ", angleBetweenVectors);
+      let handlePointOffset = this.offsetHandle;
+      let handlePoint = d.createVector(
+        this.anglePoints[anglePointIndex].x +
+          perpendicularInPlane.x * handlePointOffset,
+        this.anglePoints[anglePointIndex].y +
+          perpendicularInPlane.y * handlePointOffset,
+        0
+      );
+      let handlePoint2 = d.createVector(
+        this.anglePoints[anglePointIndex].x -
+          perpendicularInPlane.x * handlePointOffset,
+        this.anglePoints[anglePointIndex].y -
+          perpendicularInPlane.y * handlePointOffset,
+        0
+      );
+      return [handlePoint, handlePoint2];
+    }
+
+    generateIntermediatePoints() {
+      this.allPoints = [];
+      /*       this.anglePoints.forEach((anglePoint, index) => {
+       */
+      let curveSteps = this.intermediatePoints;
+      this.boneVectors.forEach((vector, index) => {
+        this.handlePoints[index] = [];
+
+        switch (this.curveType) {
+          case "LINEAR":
+            this.allPoints.push(this.anglePoints[index]);
+            break;
+          case "QUADRATIC_BEZIER_INNER":
+            if (!(index % 2 == 0)) {
+              this.handlePoints[index] = this.getHandlePoints(index);
+            }
+            break;
+          case "QUADRATIC_BEZIER_OUTER":
+            if (index % 2 == 0) {
+              this.handlePoints[index] = this.getHandlePoints(index).reverse();
+            }
+            break;
+          case "CUBIC_BEZIER":
+            if (index % 2 == 0) {
+              this.handlePoints[index] = this.getHandlePoints(index).reverse();
+            } else {
+              this.handlePoints[index] = this.getHandlePoints(index);
+            }
+            break;
+          default:
+            console.error("Unknown curve type: ", this.curveType);
+        }
+      });
+      if (
+        this.curveType === "QUADRATIC_BEZIER_INNER" ||
+        this.curveType === "QUADRATIC_BEZIER_OUTER"
+      ) {
+        this.anglePoints.forEach((anglePoint, index) => {
+          let increment = 1 / iterations;
+          for (let i = 0; i < curveSteps; i++) {
+            let nextIndex = (index + 1) % this.anglePoints.length;
+            //let increment = 1 - i;
+            console.log("increment: ", increment);
+            let handlePoint;
+            if (this.handlePoints[index].length === 0) {
+              handlePoint = this.handlePoints[nextIndex][0].copy();
+            } else {
+              handlePoint = this.handlePoints[index][1].copy();
+            }
+            let t = i / (curveSteps + 1);
+            let nextIntermediatePoint = this.createQuadrBezierPoint(
+              anglePoint,
+              handlePoint,
+              this.anglePoints[nextIndex],
+              t
+            );
+            this.allPoints.push(nextIntermediatePoint);
+          }
+        });
+      } else if (this.curveType === "CUBIC_BEZIER") {
+        this.anglePoints.forEach((anglePoint, index) => {
+          let increment = 1 / iterations;
+          for (let i = 0; i < curveSteps; i++) {
+            let nextIndex = (index + 1) % this.anglePoints.length;
+            //let increment = 1 - i;
+            console.log("increment: ", increment);
+            let t = i / (curveSteps + 1);
+            let v1 = this.createQuadrBezierPoint(
+              anglePoint,
+              this.handlePoints[index][1],
+              this.handlePoints[nextIndex][0],
+              t
+            );
+            let v2 = this.createQuadrBezierPoint(
+              this.handlePoints[index][1],
+              this.handlePoints[nextIndex][0],
+              this.anglePoints[nextIndex],
+              t
+            );
+            /* let handlePoint;
+            if (this.handlePoints[index].length === 0) {
+              handlePoint = this.handlePoints[nextIndex][0].copy();
+            } else {
+              handlePoint = this.handlePoints[index][1].copy();
+            } */
+            let x = d.lerp(v1.x, v2.x, t);
+            let y = d.lerp(v1.y, v2.y, t);
+            let nextIntermediatePoint = d.createVector(
+              x,
+              y,
+              0
+            ); /* this.createQuadrBezierPoint(
+              anglePoint,
+              handlePoint,
+              this.anglePoints[nextIndex],
+              t
+            ); */
+            this.allPoints.push(nextIntermediatePoint);
+          }
+        });
+      }
+      /* if (index % 2 == 0) return;
+        console.log("didn't return", index);
+
+        console.log("handlePoint: ", handlePoint);
+        //console.log("anglePoints[index]: ", this.angle
+        this.handlePoints[index].push(handlePoint.copy());
+        this.handlePoints[index].push(handlePoint2.copy());
+        let curveSteps = 20;
+        let increment = 1 / iterations;
+        for (let i = 1; i <= curveSteps; i++) {
+          //let increment = 1 - i;
+          console.log("increment: ", increment);
+          let t = i / (curveSteps + 1);
+          let prevV = this.createQuadrBezierPoint(
+            this.anglePoints[prevIndex],
+            handlePoint,
+            this.anglePoints[index],
+            t
+          );
+          this.allPoints.push(prevV);
+        }
+        this.allPoints.push(this.anglePoints[index]);
+        for (let i = 1; i <= curveSteps; i++) {
+          //let increment = 1 - i;
+          console.log("increment: ", increment);
+          let t = i / (curveSteps + 1);
+          let prevV = this.createQuadrBezierPoint(
+            this.anglePoints[index],
+            handlePoint2,
+            this.anglePoints[nextIndex],
+            t
+          );
+          this.allPoints.push(prevV);
+        } */
+
+      //this.allPoints.push(nextV);
+      /* if (angleBetweenVectors > 0) {
+          bisector.mult(-1);
+          perpendicularInPlane.mult(-1);
+        } */
+      /* });
+      console.log("handlePoints: ", this.handlePoints); */
+      this.generateBones();
+      /*       });
+       */
     }
 
     generateBones() {
       this.boneVectors = [];
-      this.anglePoints.forEach((anglePoint, index) => {
-        let nextIndex = (index + 1) % this.anglePoints.length;
+      this.allPoints.forEach((anglePoint, index) => {
+        let nextIndex = (index + 1) % this.allPoints.length;
 
         let vector = d.createVector(
-          this.anglePoints[nextIndex].x - anglePoint.x,
-          this.anglePoints[nextIndex].y - anglePoint.y,
-          this.anglePoints[nextIndex].z - anglePoint.z
+          this.allPoints[nextIndex].x - anglePoint.x,
+          this.allPoints[nextIndex].y - anglePoint.y,
+          this.allPoints[nextIndex].z - anglePoint.z
         );
         this.boneVectors.push(vector);
       });
@@ -469,13 +706,13 @@ var docSketch = function (d) {
 
         for (let i = 0; i < this.segments; i++) {
           let skinVertex = d.createVector(
-            this.anglePoints[index].x +
+            this.allPoints[index].x +
               rStretched * d.cos(angle * i) * this.bisectorVectors[index].x +
               this.thickness * d.sin(angle * i) * this.crossVectors[index].x,
-            this.anglePoints[index].y +
+            this.allPoints[index].y +
               rStretched * d.cos(angle * i) * this.bisectorVectors[index].y +
               this.thickness * d.sin(angle * i) * this.crossVectors[index].y,
-            this.anglePoints[index].z +
+            this.allPoints[index].z +
               rStretched * d.cos(angle * i) * this.bisectorVectors[index].z +
               this.thickness * d.sin(angle * i) * this.crossVectors[index].z
           );
@@ -489,12 +726,12 @@ var docSketch = function (d) {
       this.boneVectors.forEach((vector, index) => {
         let nextIndex = (index + 1) % this.boneVectors.length;
         d.line(
-          this.anglePoints[index].x,
-          this.anglePoints[index].y,
-          this.anglePoints[index].z,
-          this.anglePoints[nextIndex].x,
-          this.anglePoints[nextIndex].y,
-          this.anglePoints[nextIndex].z
+          this.allPoints[index].x,
+          this.allPoints[index].y,
+          this.allPoints[index].z,
+          this.allPoints[nextIndex].x,
+          this.allPoints[nextIndex].y,
+          this.allPoints[nextIndex].z
         );
       });
     }

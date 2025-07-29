@@ -47,7 +47,8 @@ Besides the wish for a procrastination project and maybe a printable soap dish o
 
 #### Further Feature Ideas
 
-- [ ] rounded inner (and/or outer) corners of star
+- [x] rounded inner (and/or outer) corners of star
   - as long as the angle between two consecutive vectors > maxAngle add intermediate points
+  - [ ] inverse option
 - [ ] add bubbles-option (randomly spread spheres along the stars vertices)
 - [ ] add steps to reproduce/diy tutorial calculate cylindrical shapes vertices in 3D space
